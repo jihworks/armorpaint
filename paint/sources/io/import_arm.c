@@ -379,6 +379,16 @@ void import_arm_init_nodes(ui_node_t_array_t *nodes) {
 			node->buttons->buffer[0]->default_value = f32_array_create_x(import_arm_image_asset_index(node->buttons->buffer[0]));
 			node->buttons->buffer[0]->data          = u8_array_create_from_string("");
 		}
+		else if (string_equals(node->type, "HUE_SAT") && node->inputs != NULL && node->inputs->length >= 3) {
+			// Socket ranges are serialized: expand the old default on existing nodes
+			// too, while preserving their values, links and custom ranges.
+			for (i32 j = 1; j <= 2; ++j) {
+				ui_node_socket_t *socket = node->inputs->buffer[j];
+				if (socket != NULL && string_equals(socket->type, "VALUE") && socket->min == 0.0 && socket->max == 1.0) {
+					socket->max = 2.0;
+				}
+			}
+		}
 	}
 }
 

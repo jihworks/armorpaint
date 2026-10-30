@@ -8,6 +8,7 @@ char *history_action_to_string(history_action_t action) {
 	case HISTORY_ACTION_EDIT_NODES:
 		return tr("Edit Nodes");
 	case HISTORY_ACTION_NEW_LAYER:
+	case HISTORY_ACTION_NEW_IMAGE_LAYER:
 		return tr("New Layer");
 	case HISTORY_ACTION_NEW_BLACK_MASK:
 		return tr("New Black Mask");
@@ -318,6 +319,12 @@ void history_undo() {
 
 		if (step->action == HISTORY_ACTION_EDIT_NODES) {
 			history_swap_canvas(step);
+		}
+		else if (step->action == HISTORY_ACTION_NEW_IMAGE_LAYER) {
+			context_set_layer(g_project->_->layers->buffer[step->layer]);
+			history_undo_i = history_undo_i - 1 < 0 ? g_config->undo_steps - 1 : history_undo_i - 1;
+			slot_layer_swap(g_context->layer, history_undo_slot(history_undo_i));
+			slot_layer_delete(g_context->layer);
 		}
 		else if (step->action == HISTORY_ACTION_NEW_LAYER || step->action == HISTORY_ACTION_NEW_BLACK_MASK || step->action == HISTORY_ACTION_NEW_WHITE_MASK ||
 		         step->action == HISTORY_ACTION_NEW_FILL_MASK) {
@@ -678,6 +685,18 @@ void history_redo() {
 
 		if (step->action == HISTORY_ACTION_EDIT_NODES) {
 			history_swap_canvas(step);
+		}
+		else if (step->action == HISTORY_ACTION_NEW_IMAGE_LAYER) {
+			slot_layer_t *l = slot_layer_create("", LAYER_SLOT_TYPE_LAYER, NULL);
+			array_insert(g_project->_->layers, step->layer, l);
+			l->name = string_copy(slot_layer_unique_name(l, step->layer_name));
+			l->object_mask = step->layer_object;
+			l->paint_occ = l->paint_rough = l->paint_met = l->paint_nor = l->paint_height = l->paint_emis = l->paint_subs = false;
+			slot_layer_swap(l, history_undo_slot(history_undo_i));
+			history_undo_i = (history_undo_i + 1) % g_config->undo_steps;
+			context_set_layer(l);
+			tab_stages_add_layer(l->name);
+			g_context->layer_preview_dirty = true;
 		}
 		else if (step->action == HISTORY_ACTION_NEW_LAYER || step->action == HISTORY_ACTION_NEW_BLACK_MASK || step->action == HISTORY_ACTION_NEW_WHITE_MASK ||
 		         step->action == HISTORY_ACTION_NEW_FILL_MASK) {

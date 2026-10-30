@@ -14,4 +14,9 @@ char *iron_websocket_receive(i32 ws);          // Next message or NULL, valid un
 i32   iron_websocket_state(i32 ws);
 void  iron_websocket_close(i32 ws); // The handle is free afterwards
 
+#ifdef IRON_WINDOWS
+// Main-thread scheduler hint: queued messages, state changes and low-rate timer work.
+bool iron_websocket_needs_update(void);
+#endif
+
 #endif

@@ -181,6 +181,7 @@ char *iron_get_arg(i32 index) {
 #include "iron_raycast.h"
 #include "iron_shape.h"
 #include "iron_tween.h"
+#include "iron_websocket.h"
 #include "kong/dir.h"
 #include <lz4x.h>
 #include <stdio.h>
@@ -208,8 +209,12 @@ void untar_here(const char *path);
 #endif
 
 void _update() {
+	bool websocket_wake = false;
+#if defined(IRON_WINDOWS) && defined(WITH_WEBSOCKET)
+	websocket_wake = iron_websocket_needs_update();
+#endif
 #ifdef IRON_WINDOWS
-	if (in_background && ++paused_frames > 3) {
+	if (in_background && ++paused_frames > 3 && !websocket_wake) {
 		Sleep(1);
 		return;
 	}
@@ -230,7 +235,7 @@ void _update() {
 	if (paused_frames > start_sleep && paused_frames % 100 == 0 && iron_idle_wake != NULL && iron_idle_wake()) {
 		paused_frames = 0;
 	}
-	if (paused_frames > start_sleep && !input_down) {
+	if (paused_frames > start_sleep && !input_down && !websocket_wake) {
 #ifdef IRON_WINDOWS
 		Sleep(1);
 #elif !defined(IRON_WASM)

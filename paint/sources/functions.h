@@ -609,6 +609,8 @@ void                   script_layer_set(slot_layer_t *l);
 slot_layer_t          *script_layer_new(void);
 slot_layer_t          *script_layer_new_fill(void);
 slot_layer_t          *script_layer_new_color(i32 base_color, f32 occlusion, f32 roughness, f32 metallic);
+slot_layer_t          *script_layer_new_image(char *path, char *name, object_t *object);
+i32_array_t           *script_layer_image_resolution(void);
 void                   script_layer_delete(slot_layer_t *l);
 i32                    script_layer_count(void);
 slot_layer_t          *script_layer_at(i32 i);

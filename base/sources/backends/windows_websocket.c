@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <iron_system.h>
 #include <iron_websocket.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@ typedef struct message {
 typedef struct {
 	volatile LONG    state;
 	volatile LONG    refs; // Main thread and receive thread
+	i32              observed_state; // Main thread only
 	wchar_t          url[2048];
 	HINTERNET        hsession;
 	HINTERNET        hconnect;
@@ -29,6 +31,38 @@ typedef struct {
 } websocket_t;
 
 static websocket_t *sockets[MAX_SOCKETS];
+
+bool iron_websocket_needs_update(void) {
+	// Called by the main loop even when it would normally sleep. Never execute
+	// plugin/GPU code on the receive thread or keep rendering at full frame rate.
+	static double next_poll = 0.0;
+	static double next_tick = 0.0;
+	double        now       = iron_time();
+	if (now < next_poll) {
+		return false;
+	}
+	next_poll = now + 0.05;
+	bool active  = false;
+	bool pending = false;
+	for (int i = 0; i < MAX_SOCKETS; ++i) {
+		websocket_t *ws = sockets[i];
+		if (ws == NULL) {
+			continue;
+		}
+		active     = true;
+		LONG state = InterlockedCompareExchange(&ws->state, 0, 0);
+		pending |= state != ws->observed_state;
+		ws->observed_state = state;
+		EnterCriticalSection(&ws->cs);
+		pending |= ws->head != NULL;
+		LeaveCriticalSection(&ws->cs);
+	}
+	if (active && (pending || now >= next_tick)) {
+		next_tick = now + 1.0;
+		return true;
+	}
+	return false;
+}
 
 static void websocket_release(websocket_t *ws) {
 	if (InterlockedDecrement(&ws->refs) > 0) {

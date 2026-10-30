@@ -654,6 +654,67 @@ slot_layer_t *script_layer_new_color(i32 base_color, f32 occlusion, f32 roughnes
 	return script_layer_new_cleared(base_color, occlusion, roughness, metallic);
 }
 
+i32_array_t *script_layer_image_resolution(void) {
+	i32_array_t *size = i32_array_create(0);
+	i32_array_push(size, config_get_texture_res_x());
+	i32_array_push(size, config_get_texture_res_y());
+	return size;
+}
+
+// A self-contained paint layer: no imported asset, fill material or external file dependency.
+slot_layer_t *script_layer_new_image(char *path, char *name, object_t *object) {
+	if (path == NULL || name == NULL || name[0] == '\0' || object == NULL || g_project == NULL || g_project->_ == NULL ||
+	    g_project->_->paint_objects == NULL || g_config == NULL || g_context == NULL || g_context->layer == NULL ||
+	    g_config->tools != TOOLS_PAINT || !iron_file_exists(path)) return NULL;
+	i32 mask = 0;
+	for (i32 i = 0; i < g_project->_->paint_objects->length; ++i)
+		if (g_project->_->paint_objects->buffer[i]->base == object) mask = i + 1;
+	if (mask == 0 || tab_meshes_get_linked_override(g_project->_->paint_objects->buffer[mask - 1]) >= 0) return NULL;
+	gpu_texture_t *current;
+	bool in_use;
+	script_gpu_begin(&current, &in_use);
+	// Uncached decoding is important when the sender overwrites an existing PNG path.
+	gpu_texture_t *image = iron_load_texture(path);
+	if (image == NULL) { script_gpu_end(current, in_use); return NULL; }
+	if (image->width != config_get_texture_res_x() || image->height != config_get_texture_res_y()) {
+		gpu_delete_texture(image);
+		script_gpu_end(current, in_use);
+		return NULL;
+	}
+	base_init_undo_layers();
+	slot_layer_t *l = layers_new_layer(false, g_project->_->layers->length, NULL);
+	if (l != NULL) {
+		l->parent = NULL;
+		char *old_name = l->name;
+		l->name = string_copy(slot_layer_unique_name(l, name));
+		tab_stages_rename_layer(old_name, l->name);
+		l->object_mask = mask;
+		l->paint_occ = l->paint_rough = l->paint_met = l->paint_nor = l->paint_height = l->paint_emis = l->paint_subs = false;
+		slot_layer_clear(l, 0x00000000, NULL, 1.0, layers_default_rough, 0.0);
+		draw_begin(l->texpaint, true, 0x00000000);
+		draw_set_pipeline(pipes_copy); // Direct RGBA copy; do not premultiply the source alpha.
+		draw_scaled_image(image, 0, 0, l->texpaint->width, l->texpaint->height);
+		draw_set_pipeline(NULL);
+		draw_end();
+		tab_layers_apply_filter(0);
+		make_material_parse_mesh_material();
+		make_material_parse_paint_material(true);
+		ui_dock_redraw(TAB_AREA_SIDEBAR0);
+		// Reserve a normal history slot so later paint strokes keep their own redo data.
+		history_copy_to_undo(l->id, history_undo_i, false);
+		history_undo_i = (history_undo_i + 1) % g_config->undo_steps;
+		history_step_t *step = history_push(HISTORY_ACTION_NEW_IMAGE_LAYER);
+		step->layer_name = string_copy(l->name);
+		g_context->layers_preview_dirty = true;
+		g_context->layer_preview_dirty = true;
+		g_context->rtdirty = 2;
+		g_context->ddirty = 2;
+	}
+	gpu_delete_texture(image);
+	script_gpu_end(current, in_use);
+	return l;
+}
+
 slot_layer_t *script_layer_new_fill(void) {
 	if (g_context == NULL || g_context->layer == NULL || g_context->material == NULL) {
 		return NULL;

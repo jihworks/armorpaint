@@ -645,6 +645,14 @@ slot_layer_t_array_t *slot_layer_get_masks(slot_layer_t *raw, bool include_group
 	return children;
 }
 
+slot_layer_t_array_t *slot_layer_get_composite_masks(slot_layer_t *raw) {
+	// A visible filter replaces its parent's pixels in the composite. Apply the
+	// parent's layer/group masks after filtering, just as for the unfiltered layer.
+	// Keep get_masks() about ownership: deleting/duplicating a filter must not
+	// delete/duplicate the parent's masks.
+	return slot_layer_get_masks(slot_layer_is_filter(raw) ? raw->parent : raw, true);
+}
+
 bool slot_layer_has_masks(slot_layer_t *raw, bool include_group_masks) {
 	// Layer mask
 	for (i32 i = 0; i < g_project->_->layers->length; ++i) {

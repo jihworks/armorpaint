@@ -42,6 +42,7 @@ bool                  slot_layer_is_visible(slot_layer_t *raw);
 slot_layer_t_array_t *slot_layer_get_children(slot_layer_t *raw);
 slot_layer_t_array_t *slot_layer_get_recursive_children(slot_layer_t *raw);
 slot_layer_t_array_t *slot_layer_get_masks(slot_layer_t *raw, bool include_group_masks);
+slot_layer_t_array_t *slot_layer_get_composite_masks(slot_layer_t *raw);
 bool                  slot_layer_has_masks(slot_layer_t *raw, bool include_group_masks);
 bool                  slot_layer_has_visible_filter(slot_layer_t *raw);
 slot_layer_t_array_t *slot_layer_get_filters(slot_layer_t *raw, bool include_group_filters);

@@ -1280,7 +1280,7 @@ slot_layer_t *layers_flatten(bool height_to_normal, slot_layer_t_array_t *layers
 		}
 
 		gpu_texture_t        *mask    = empty;
-		slot_layer_t_array_t *l1masks = slot_layer_get_masks(l1, true);
+		slot_layer_t_array_t *l1masks = slot_layer_get_composite_masks(l1);
 		if (l1masks != NULL) {
 			layers_make_temp_mask_img();
 			draw_begin(pipes_temp_mask_image, GPU_CLEAR_COLOR, 0xffffffff);
